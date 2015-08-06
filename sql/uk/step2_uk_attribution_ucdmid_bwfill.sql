@@ -10,8 +10,9 @@ go
 select distinct tb1.ucdmid
 into a.feng_uk_ucdmidpool
 from a.feng_uk_factvisits_ucdmid_bwfill tb1
-    left join p.fact_subscription tb2 on tb1.ucdmid = tb2.ucdmid
-where trunc(servertimemst) between '2014-01-01' and '2014-10-01'
+    join p.fact_subscription tb2 on tb1.ucdmid = tb2.ucdmid
+where trunc(servertimemst) >= '2015-01-01' 
+    and trunc(servertimemst) < '2015-06-01'
     and tb1.ucdmid != '00000000-0000-0000-0000-000000000000'
 --    and siteid = 3709
     and (freetrialorders > 0 or hardofferorders > 0)
@@ -24,19 +25,19 @@ go
 select dropif('a', 'feng_uk_factvisitsample')
 go
 
-select servertimemst
+select freetrialorders
+     , hardofferorders
+     , servertimemst
      , ucdmid
      , visitorid
      , orderid
-     , freetrialorders
-     , hardofferorders
      , subchannel
      , devicegroupdescription
      , browserdescription
      , operatingsystemdescription
 into a.feng_uk_factvisitsample
 from (select * from a.feng_uk_factvisits_ucdmid_bwfill
-      where ucdmid in (select ucdmid from a.feng_uk_ucdmidpool))  tb1
+      where ucdmid in (select ucdmid from a.feng_uk_ucdmidpool))
 go
 
 --------------------------------------------------------------------------------
@@ -52,15 +53,15 @@ go
 select dropif('a', 'feng_uk_visitandsignup_tmp0')
 go
 
-select tb1.ucdmid
+select case when datediff(day, tb1.servertimemst, tb4.signupcreatedate) < 1 
+                 and tb1.freetrialorders = 1 then 1 else 0 end as new_freetrialorders
+     , case when datediff(day, tb1.servertimemst, tb4.signupcreatedate) < 1 
+                 and tb1.hardofferorders = 1 then 1 else 0 end as new_hardofferorders
+     , tb1.ucdmid
      , tb1.servertimemst
      , tb4.signupcreatedate
      , tb1.visitorid
      , tb1.subchannel
-     , case when datediff(day, tb1.servertimemst, tb4.signupcreatedate) < 1 
-                 and tb1.freetrialorders = 1 then 1 else 0 end as new_freetrialorders
-     , case when datediff(day, tb1.servertimemst, tb4.signupcreatedate) < 1 
-                 and tb1.hardofferorders = 1 then 1 else 0 end as new_hardofferorders
      , tb1.devicegroupdescription
      , tb1.browserdescription
      , tb1.operatingsystemdescription
@@ -72,10 +73,12 @@ from a.feng_uk_factvisitsample tb1
           from p.fact_subscription tb2
               join p.dim_programin tb3 on tb2.programinid = tb3.programinid
           where tb3.programinparentdescription = 'New'
-              and trunc(tb2.signupcreatedate) between '2014-01-01' and '2014-10-01'
+              and trunc(tb2.signupcreatedate) >= '2015-01-01'
+              and trunc(tb2.signupcreatedate) < '2015-06-01'
          )tb4
         on (tb1.ucdmid = tb4.ucdmid 
-            and tb1.servertimemst between dateadd(day, -30, tb4.signupcreatedate) and tb4.signupcreatedate)
+            and tb1.servertimemst >= dateadd(day, -30, tb4.signupcreatedate) 
+            and tb1.servertimemst < tb4.signupcreatedate)
 go
 
 select dropif('a', 'feng_uk_sutmp')
@@ -94,9 +97,6 @@ select tb1.*
 into a.feng_uk_visitandsignup_tmp1
 from a.feng_uk_visitandsignup_tmp0 tb1
     join a.feng_uk_sutmp tb2 on (tb1.ucdmid = tb2.ucdmid and tb1.signupcreatedate = tb2.signupcreatedate)
-go
-
-select count(*) from a.feng_uk_visitandsignup_tmp1
 go
 
 --------------------------------------------------------------------------------
@@ -154,6 +154,10 @@ from a.feng_uk_visitandsignup_tmp3 tb1
         on (tb1.ucdmid = tb2.ucdmid and tb1.signupcreatedate = tb2.signupcreatedate)
 go
 
+select dropif('a', 'feng_uk_ucdmidpool')
+go
+select dropif('a', 'feng_uk_factvisitsample')
+go
 select dropif('a', 'feng_uk_visitandsignup_tmp0')
 go
 select dropif('a', 'feng_uk_visitandsignup_tmp1')
@@ -205,8 +209,8 @@ from a.feng_uk_visitandsignup
 group by subchannel
 go
 
-select * from a.feng_uk_attribution_3touches
-go
+--select * from a.feng_uk_attribution_3touches
+--go
 --------------------------------------------------------------------------------
 -- freetrial orders and hardoffer orders group by visitnumber                 --
 --------------------------------------------------------------------------------
@@ -223,16 +227,11 @@ group by visitnumber
 order by visitnumber
 go
 
-select * from a.feng_uk_orderbyvisitnumber
-go
+--select * from a.feng_uk_orderbyvisitnumber
+--go
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
-
-select count(*), sum(new_freetrialorders) + sum(new_hardofferorders),
-       min(servertimemst), max(servertimemst), count(distinct ucdmid)
-from a.feng_uk_visitandsignup
-go
 
 -- visit at least 5 times: ~ 21,845 --
 select count(*), count(distinct ucdmid)
