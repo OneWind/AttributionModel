@@ -12,7 +12,7 @@ into a.feng_uk_ucdmidpool
 from a.feng_uk_factvisits_ucdmid_bwfill tb1
     join p.fact_subscription tb2 on tb1.ucdmid = tb2.ucdmid
 where trunc(servertimemst) >= '2015-01-01' 
-    and trunc(servertimemst) < '2015-06-01'
+    and trunc(servertimemst) < '2015-07-01'
     and tb1.ucdmid != '00000000-0000-0000-0000-000000000000'
 --    and siteid = 3709
     and (freetrialorders > 0 or hardofferorders > 0)
@@ -35,6 +35,7 @@ select freetrialorders
      , devicegroupdescription
      , browserdescription
      , operatingsystemdescription
+     , rdnum
 into a.feng_uk_factvisitsample
 from (select * from a.feng_uk_factvisits_ucdmid_bwfill
       where ucdmid in (select ucdmid from a.feng_uk_ucdmidpool))
@@ -66,6 +67,7 @@ select case when datediff(day, tb1.servertimemst, tb4.signupcreatedate) < 1
      , tb1.browserdescription
      , tb1.operatingsystemdescription
      , tb1.orderid
+     , tb1.rdnum
      , tb4.signupordernumber
 into a.feng_uk_visitandsignup_tmp0
 from a.feng_uk_factvisitsample tb1
@@ -74,7 +76,7 @@ from a.feng_uk_factvisitsample tb1
               join p.dim_programin tb3 on tb2.programinid = tb3.programinid
           where tb3.programinparentdescription = 'New'
               and trunc(tb2.signupcreatedate) >= '2015-01-01'
-              and trunc(tb2.signupcreatedate) < '2015-06-01'
+              and trunc(tb2.signupcreatedate) < '2015-07-01'
          )tb4
         on (tb1.ucdmid = tb4.ucdmid 
             and tb1.servertimemst >= dateadd(day, -30, tb4.signupcreatedate) 
@@ -108,12 +110,12 @@ select dropif('a', 'feng_uk_visitandsignup_tmp2')
 go
 
 select ucdmid, servertimemst, min(signupcreatedate) signupcreatedate, 
-       subchannel, new_freetrialorders, new_hardofferorders, visitorid,
+       subchannel, new_freetrialorders, new_hardofferorders, visitorid, rdnum,
        devicegroupdescription, browserdescription, operatingsystemdescription
 into a.feng_uk_visitandsignup_tmp2
 from a.feng_uk_visitandsignup_tmp1
 group by ucdmid, servertimemst, subchannel, 
-         new_freetrialorders, new_hardofferorders, visitorid,
+         new_freetrialorders, new_hardofferorders, visitorid, rdnum,
          devicegroupdescription, browserdescription, operatingsystemdescription
 go
 

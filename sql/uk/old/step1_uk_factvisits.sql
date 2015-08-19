@@ -2,10 +2,10 @@
 --------------------------------------------------------------------------------
 ------------------------------ fact visits for uk ------------------------------
 --------------------------------------------------------------------------------
--- data saved in: a.feng_us_factvisits_tmp                                    --
+-- data saved in: a.feng_uk_factvisits_tmp                                    --
 -- use useragentstring to retrieve browser, operating system and device group --
 --------------------------------------------------------------------------------
-select dropif('a', 'feng_us_factvisits_tmp')
+select dropif('a', 'feng_uk_factvisits_tmp')
 go
 
 select tb1.servertimemst
@@ -14,7 +14,6 @@ select tb1.servertimemst
      , tb1.visitorid
      , tb1.freetrialorders
      , tb1.hardofferorders
-     , tb1.dnaorders
      , tb1.siteid
      , tb1.orderid
      , tb4.browserdescription
@@ -43,19 +42,8 @@ select tb1.servertimemst
                  and lower(tb1.visitreferrer) not like '%yahoo%'
                  and lower(tb1.visitreferrer) not like '%facebook%'
                  and lower(tb1.visitreferrer) not like '%twitter%'
-                 and lower(tb1.visitreferrer) like '%ancestry.com%'
-                 and lower(tb1.visitreferrer) not like '%ancestry.com.au%'
                  and tb1.visitreferrer != '0' --- double check
-                 and lower(tb3.subchannel) = 'unknown') then 'Internal Referrals'
-            when (lower(tb1.visitreferrer) not like '%google%'
-                 and lower(tb1.visitreferrer) not like '%bing%'
-                 and lower(tb1.visitreferrer) not like '%yahoo%'
-                 and lower(tb1.visitreferrer) not like '%facebook%'
-                 and lower(tb1.visitreferrer) not like '%twitter%'
-                 and not (lower(tb1.visitreferrer) like '%ancestry.com%'
-                 and lower(tb1.visitreferrer) not like '%ancestry.com.au%')
-                 and tb1.visitreferrer != '0' --- double check
-                 and lower(tb3.subchannel) = 'unknown') then 'Geo-Redirect'
+                 and lower(tb3.subchannel) = 'unknown') then 'Referrals'
             when (tb1.visitreferrer = '0'
                  and tb2.entrypagenamedescription like '%: home%'
                  and lower(tb3.subchannel) = 'unknown') then 'Direct Brand'
@@ -63,43 +51,37 @@ select tb1.servertimemst
                  and tb2.entrypagenamedescription not like '%: home%'
                  and lower(tb3.subchannel) = 'unknown') then 'Dark Traffic'
             else tb3.subchannel end subchannel
-into a.feng_us_factvisits_tmp
+into a.feng_uk_factvisits_tmp
 from p.fact_visits tb1
     join p.dim_entrypagename tb2 on tb1.entrypagenameid = tb2.entrypagenameid
     join p.dim_promotion tb3 on tb1.promotionid = tb3.promotionid
     left join p.dim_useragent tb4 on tb1.useragentstring = tb4.useragentstring
-where tb1.siteid = 3713
+where tb1.siteid = 3709
 go
 
-select top 100 * from a.feng_us_factvisits_tmp
-go
-
-select subchannel, count(*) cnt from a.feng_us_factvisits_tmp
-group by subchannel
-go
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 ------------------ UCDMID backward fill for same visitor id --------------------
 --------------------------------------------------------------------------------
--- data saved in: a.feng_us_factvisits_ucdmid_bwfill                          --
+-- data saved in: a.feng_uk_factvisits_ucdmid_bwfill                          --
 --------------------------------------------------------------------------------
-select dropif('a', 'feng_us_factvisits_tmp2')
+select dropif('a', 'feng_uk_factvisits_tmp2')
 go
 
 -- for any visitorid, if is has at least one record with none-zero ucdmid,    --
 -- save all records with that visitorid                                       --
 select servertimemst, ucdmid, visitorid, orderid,
-       freetrialorders, hardofferorders, dnaorders, subchannel,
+       freetrialorders, hardofferorders, subchannel,
        devicegroupdescription, browserdescription, operatingsystemdescription
-into a.feng_us_factvisits_tmp2
-from a.feng_us_factvisits_tmp
+into a.feng_uk_factvisits_tmp2
+from a.feng_uk_factvisits_tmp
 where visitorid in (select visitorid
-                    from a.feng_us_factvisits_tmp
+                    from a.feng_uk_factvisits_tmp
                     where ucdmid != '00000000-0000-0000-0000-000000000000')
 go
 
-select dropif('a', 'feng_us_factvisits_ucdmid_bwfill')
+select dropif('a', 'feng_uk_factvisits_ucdmid_bwfill')
 go
 
 select servertimemst
@@ -110,12 +92,12 @@ select servertimemst
      , orderid
      , freetrialorders
      , hardofferorders
-     , dnaorders
      , subchannel
      , devicegroupdescription
      , browserdescription
      , operatingsystemdescription
-into a.feng_us_factvisits_ucdmid_bwfill
+     , row_number() over (order by servertimemst) rdnum
+into a.feng_uk_factvisits_ucdmid_bwfill
 from 
     (
      select orgucdmid as ucdmid
@@ -124,7 +106,6 @@ from
           , orderid
           , freetrialorders
           , hardofferorders
-          , dnaorders
           , subchannel
           , devicegroupdescription
           , browserdescription
@@ -139,7 +120,6 @@ from
                , orderid
                , freetrialorders
                , hardofferorders
-               , dnaorders
                , subchannel
                , devicegroupdescription
                , browserdescription
@@ -157,7 +137,6 @@ from
                      , tb1.orderid
                      , tb1.freetrialorders
                      , tb1.hardofferorders
-                     , tb1.dnaorders
                      , tb1.subchannel
                      , tb1.devicegroupdescription
                      , tb1.browserdescription
@@ -167,24 +146,69 @@ from
                      -- all records have zero ucdmid, 
                      -- or non-zero ucdmid does not satisfy time constraints
                      -- we only do backward fill, not forward fill
-                from a.feng_us_factvisits_tmp2 tb1
+                from a.feng_uk_factvisits_tmp2 tb1
                     left join (select *
-                               from a.feng_us_factvisits_tmp2
+                               from a.feng_uk_factvisits_tmp2
                                where ucdmid != '00000000-0000-0000-0000-000000000000') tb2
                         on (tb1.visitorid = tb2.visitorid 
                             and tb1.servertimemst < tb2.servertimemst
                             and datediff(day, tb1.servertimemst, tb2.servertimemst) <= 30)
                 group by tb1.ucdmid, tb1.servertimemst, tb2.ucdmid, tb1.visitorid, tb1.orderid,
-                         tb1.freetrialorders, tb1.hardofferorders, tb1.dnaorders, tb1.subchannel,
+                         tb1.freetrialorders, tb1.hardofferorders, tb1.subchannel,
                          tb1.devicegroupdescription, tb1.browserdescription, tb1.operatingsystemdescription
                )
-          group by orgucdmid, orgservertimemst, visitorid, orderid, freetrialorders, hardofferorders, dnaorders,
+          group by orgucdmid, orgservertimemst, visitorid, orderid, freetrialorders, hardofferorders,
                    subchannel, devicegroupdescription, browserdescription, operatingsystemdescription
          )
     ) 
 go
 
+drop table a.feng_uk_factvisits_tmp
+go
+
+drop table a.feng_uk_factvisits_tmp2
+go
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
+--------- The following are just some random test code, you can ignore ---------
 --------------------------------------------------------------------------------
+
+--select top 20 * from a.feng_uk_factvisits_ucdmid_bwfill
+--go
+
+select subchannel, count(*) cnt
+from a.feng_uk_factvisits_ucdmid_bwfill
+group by subchannel
+go
+
+----- compare the following results -----
+select top 50 *
+from a.feng_uk_factvisits_ucdmid_bwfill
+where subchannel = 'Referrals'
+    and ucdmid = '01A0268E-0001-0000-0000-000000000000'
+go
+
+select top 50 *
+from p.fact_visits
+where ucdmid = '01A0268E-0001-0000-0000-000000000000'
+    and trunc(servertimemst) = '2015-01-10'
+go
+
+
+select servertimemst, ucdmid, visitorid
+from a.feng_uk_factvisits_tmp2
+where visitorid = '725894793'
+go
+
+select datepart(hour, servertimemst), count(*)
+from a.feng_uk_factvisits_ucdmid_bwfill
+where trunc(servertimemst) = '2014-06-01'
+group by datepart(hour, servertimemst)
+go
+
+-- other visitorid to compare --
+-- 798040928
+-- 941571986
+-- 513828463
+
