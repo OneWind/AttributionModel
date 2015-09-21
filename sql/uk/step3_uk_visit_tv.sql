@@ -1,3 +1,6 @@
+-- date from: '2015-01-01'
+-- date to:   '2015-06-30'
+
 select dropif('a', 'feng_tmp')
 go
 
@@ -14,16 +17,24 @@ into a.feng_tmp
 from (select *
       from a.feng_uk_factvisits_ucdmid_bwfill
       where trunc(servertimemst) >= '2015-01-01' and trunc(servertimemst) < '2015-07-01'
-          and subchannel in ('Paid Search – Brand', 'Organic Brand', 'Direct Homepage', 'Direct Non-Homepage', 'Geo-Redirect')) tb1
-    join (select *
-               , dateadd(second, 30, datetimemst) datetimeplus30s
-               , dateadd(second, 360, datetimemst) datetimeplus360s
-          from a.feng_uktv_2014jan_2015jun
-          where impactalladults > 0) tb2
-        on (tb1.servertimemst < tb2.datetimeplus360s
-            and tb1.servertimemst >= tb2.datetimeplus30s)
+          and subchannel in ('Paid Search – Brand', 'Paid Search – NonBrand', 'Organic Brand', 'Organic NonBrand', 'Direct Homepage', 'Direct Non-Homepage', 'Geo-Redirect')) tb1
+      join (select *
+                 , dateadd(minute, 5, datetimemst) datetimeplus5min
+            from a.feng_uktv_2014jan_2015jun
+            where impactalladults > 0) tb2
+      on (tb1.servertimemst < tb2.datetimeplus5min
+          and tb1.servertimemst > tb2.datetimemst)
+--    join (select *
+--               , dateadd(second, 30, datetimemst) datetimeplus30s
+--               , dateadd(second, 360, datetimemst) datetimeplus360s
+--          from a.feng_uktv_2014jan_2015jun
+--          where impactalladults > 0) tb2
+--        on (tb1.servertimemst < tb2.datetimeplus360s
+--            and tb1.servertimemst >= tb2.datetimeplus30s)
 go
 
+--select min(servertimemst - spotlogtime), max(servertimemst - spotlogtime) from a.feng_tmp
+--go
 
 select dropif('a', 'feng_uk2015_visitandtv')
 go
@@ -51,16 +62,6 @@ from (
 )
 go
 
-
-select top 50 * from a.feng_uk2015_visitandtv
-where subchannel in ('Paid Search – Brand', 'Organic Brand', 'Direct Homepage', 'Direct Non-Homepage', 'Geo-Redirect')
-    and tvindicator = 0
-go
-
-
-
-select count(*), count(distinct rdnum) from a.feng_uk2015_visitandtv
-go
 
 select subchannel, count(*) cnt
 from a.feng_uk2015_visitandtv
