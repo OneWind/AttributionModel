@@ -29,7 +29,7 @@ GO
 GRANT SELECT ON a.feng_uktv_weights TO tableau
 GO
 
-copy a.feng_uktv_weights from '/mnt/matrix/load/Feng/TVweightsEast.csv' 
+copy a.feng_uktv_weights from '/mnt/matrix/load/Feng/UK_TVweights.csv' 
     delimiter',' 
     removequotes 
     maxerror 0

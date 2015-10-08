@@ -217,3 +217,11 @@ group by subchannel
 go
 
 
+select dropif('a', 'feng_ca_attribution_phase1')
+go
+
+select tb2.visitreferrer, tb2.pageurl, tb1.*
+into a.feng_ca_attribution_phase1
+from a.feng_ca_visit_tv_signup tb1
+    join a.feng_ca_factvisits_ucdmid_bwfill tb2 on tb1.rdnum = tb2.rdnum
+go
